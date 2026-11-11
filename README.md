@@ -43,12 +43,38 @@ To address the limited coverage of Appendix M, we completed an expanded checkpoi
 
 4. The paper contains several inconsistencies that raise questions about the reliability of the reported experimental details. For example, Appendix states that continuous-control runs take about 3 hours, while Table 1 reports substantially longer training times for many tasks, sometimes exceeding 50 hours.
 
+We thank the reviewer for identifying this inconsistency. The three-hour statement in Appendix P.4 is not an accurate summary of the task-specific runtimes in Table 1, and we will remove it. We will reconcile the table against available run logs and clarify the training budgets, hardware, and timing scope. Since hardware loads varied, these measurements represent observed computational costs, not a controlled efficiency comparison. We apologize for the inconsistent reporting.
+
 5. The main text is so dense that the paper’s central claims are hard to identify. Moving some secondary theoretical explanations to the appendix and using the available space to provide more details about the experimental setup would improve readability and make the empirical results easier to assess.
+
+We thank the reviewer for this constructive suggestion. We will reorganize the main text around the reachability-based formulation, the practical stage-wise algorithm, and the empirical findings, explicitly distinguishing theoretical guarantees from implementation assumptions. We will move secondary derivations to the appendix and use the freed space to clarify training budgets, episode horizons, evaluation metrics, and baseline tuning, making the comparisons easier to assess and reproduce.
 
 
 ### Questions For Authors:
 1. How were the baseline methods tuned? Were all methods evaluated using the same episode horizons, environment-step budgets?
-   
+
+Response to R1 Q1
+Thank you for requesting these details. We agree that the implementation, hyperparameters, and comparison budgets should be stated explicitly. The baselines share a common SAC backbone in our continuous-control implementation, but not every historical run used identical horizons or training settings. We clarify the original setup and the additional controlled comparisons below.
+Baseline implementation and tuning
+We implemented the continuous-control baselines as follows:
+- LCER: SAC with counterfactual replay. Physical transitions are reused with relabeled automaton states, and the corresponding automaton successors and rewards are recomputed.
+- DRL²: SAC with an automaton-level transition model and a learned potential-based exploration bonus.
+- CycLER: a SAC-based adaptation using accepting-cycle reward relabeling. Candidate cycle rewards are computed along each trajectory, and the highest-scoring cycle supplies the replay rewards.
+- TiLoIL: its task-specific discriminator and demonstration-based training procedure. The additional TiLoIL_w_potential variant retains the same demonstrations, discriminator, and policy-learning setup, adding RACE’s automaton potential.
+For LCER, DRL², and CycLER, the shared network architecture uses two 256-unit hidden layers, twin critics, and automaton-augmented observations. Common settings include learning rate \(3\times10^{-4}\), batch size 64, replay capacity \(10^6\), training discount parameter 0.99, and automatic entropy tuning.
+
+| Environment | Steps | RACE | TiLoIL | TiLoIL_wo_demo | TiLoIL_w_potential |
+|---|---:|---:|---:|---:|---:|
+| Doggo Avoid | 400K | 365.16 ± 50.03 | 319.66 ± 69.57 | 381.95 ± 45.58 | — |
+| Doggo Navigate | 400K | 286.32 ± 77.26 | 298.58 ± 95.71 | 331.52 ± 48.25 | — |
+| Carlo | 1M | 2.55 ± 0.62 | 3.88 ± 1.17 | 0 ± 0 | 4.18 ± 0.57 |
+| Fetch Avoid | 400K | 91.79 ± 1.77 | 76.31 ± 5.43 | 86.91 ± 0.41 | 61.49 ± 18.48 |
+| Fetch Align | 2M | 47.82 ± 35.07 | 33.40 ± 35.51 | 37.91 ± 38.39 | 36.87 ± 35.08 |
+| Cheetah Flip | 1M | 14.50 ± 8.62 | 22.74 ± 2.07 | 0 ± 0 | 12.07 ± 9.20 |
+| FlatWorld Cycle† | 2M | 3.64 ± 1.49 | 1.33 ± 1.89 | 0± 0 | 0.00 ± 0.00 |
+| Point Zone | 2M | 1.51 ± 1.10 | — | 0 ± 0 | — |
+| Point Button | 2M | 2.13 ± 2.27 | — | 0 ± 0 | — |
+
 2. How does the fixed accepting-state Q-value boundary allow the policy to distinguish between safe and unsafe actions immediately after an accepting visit, given that the critic assigns the same target value to all actions at accepting states?
    
 3. Can the authors provide additional evaluations that distinguish successful accepting rounds from subsequent safety violations, particularly over longer execution horizons?
