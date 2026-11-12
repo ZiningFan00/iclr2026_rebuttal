@@ -63,6 +63,16 @@ We implemented the continuous-control baselines as follows:
 - TiLoIL: its task-specific discriminator and demonstration-based training procedure. The additional TiLoIL_w_potential variant retains the same demonstrations, discriminator, and policy-learning setup, adding RACE’s automaton potential.
 For LCER, DRL², and CycLER, the shared network architecture uses two 256-unit hidden layers, twin critics, and automaton-augmented observations. Common settings include learning rate \(3\times10^{-4}\), batch size 64, replay capacity \(10^6\), training discount parameter 0.99, and automatic entropy tuning.
 
+Additional controlled comparison
+To address the comparison concern, we completed 30 new runs: five tasks × two TiLoIL variants × three seeds, using all seeds 0–2 without performance-based selection.
+Within each task, both variants use the same physical environment implementation, specification, horizon, online interaction budget, demonstrations, warm-up, and evaluation procedure. Shared optimizer settings are learning rate \(3\times10^{-4}\), batch size 64, replay capacity \(10^6\), \(\tau=10^{-4}\), and automatic entropy tuning. The potential-augmented variant differs by the added potential term. Demonstrations remain an additional information resource and are not counted as online interactions.
+The common evaluator uses:
+- Ten evaluation episodes every 5% of the training budget.
+- The fixed final checkpoint evaluated on 100 held-out episodes.
+- Identical evaluation seed banks and horizon \(H\).
+- Task-performance metrics excluding discriminator rewards and potential bonuses.
+These controls establish a matched comparison between the two newly trained TiLoIL variants. They do not retroactively establish identical training conditions for every archived RACE curve.
+
 | Environment | Steps | RACE | TiLoIL | TiLoIL_wo_demo | TiLoIL_w_potential |
 |---|---:|---:|---:|---:|---:|
 | Doggo Avoid | 400K | 365.16 ± 50.03 | 319.66 ± 69.57 | 381.95 ± 45.58 | — |
