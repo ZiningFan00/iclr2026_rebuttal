@@ -86,8 +86,54 @@ These controls establish a matched comparison between the two newly trained TiLo
 | Point Button | 2M | 2.13 ± 2.27 | — | 0 ± 0 | — |
 
 2. How does the fixed accepting-state Q-value boundary allow the policy to distinguish between safe and unsafe actions immediately after an accepting visit, given that the critic assigns the same target value to all actions at accepting states?
-   
+
+Thank you for this question. The fixed accepting-state boundary is a credit-assignment mechanism for completing the current round, not a constraint guaranteeing safe continuation. Under an exact critic satisfying Q(x,a)=C for every action at an accepting state, the reviewer is correct: the critic provides no action-dependent task signal there, leaving only the entropy incentive in the SAC actor objective.
+
+This local boundary does not make the entire critic or policy uniform; decisions at non-accepting states remain state- and action-dependent. Nevertheless, although finite-trained critics need not fit the boundary exactly, their residual differences cannot be assumed to reliably distinguish safe from unsafe actions. We therefore examined both accepting-state Q-values and actual continuation behavior.
+
+### Accepting-state Q-value diagnostics
+
+We classified actions using native one-step hazard checks. For each accepting-state probe, we compared the highest Q-value among tested safe actions with the highest among tested unsafe actions. Continuous-control tests used \(Q=\min(Q_1,Q_2)\) over a \(21\times21\) action grid; tabular tests enumerated all five actions.
+
+| Environment | Seeds | Comparable probes | Mean best-safe Q | Mean best-unsafe Q | Safe–unsafe gap | Stochastic immediate-hazard rate |
+|---|---|---:|---:|---:|---:|---:|
+| Grid Avoid, size 7 | 0–2 | 11 | ≈0 | ≈0 | ≈0 | ≈40% |
+| FlatWorld | 6, 8, 10 | 12 | 100.071 | 100.079 | −0.008 | 18.79% |
+
+The FlatWorld results average four probes per seed, with 10,000 stochastic action samples per probe. 
+
+### Uninterrupted post-acceptance evaluation
+
+We additionally evaluated deterministic executions at \(H\), \(5H\), and \(10H\), separating immediate violations from failures occurring later after acceptance.
+
+| Environment | Violation metric | \(H\) | \(5H\) | \(10H\) |
+|---|---|---:|---:|---:|
+| Fetch Avoid, \(H=100\) | Immediate post-acceptance | 0% | 0% | 0% |
+| | Subsequent post-acceptance episode violation | 0% | 0% | 0% |
+| FlatWorld, \(H=50\) | Immediate post-acceptance | 0% | 0% | 0% |
+| | Subsequent post-acceptance episode violation | 0% | 0% | 0% |
+| Carlo, \(H=500\) | Immediate post-acceptance | 0% | 0% | 0% |
+| | Subsequent post-acceptance episode violation | 25% | 75% | 75% |
+
+Rates are averaged across four training seeds for Fetch Avoid and Carlo, and the three acceptance-reaching seeds for FlatWorld. Immediate rates use eligible post-acceptance steps; subsequent rates use episodes reaching acceptance. Fetch Avoid and FlatWorld each had one distinct initial configuration per seed, limiting generalization of their deterministic results.
+
+The supported conclusion is that successful continuation can occur with the fixed boundary, not that the boundary guarantees it. The deterministic results document observed continuation, while the stochastic probes and Carlo’s later failures identify its limitations. We will clarify this distinction, report safety separately from acceptance counts, and explicitly state that the recurrence conditions in our theory are assumptions—not properties established by the fixed accepting-state target.
+
 3. Can the authors provide additional evaluations that distinguish successful accepting rounds from subsequent safety violations, particularly over longer execution horizons?
+
+Yes. We have added evaluations at \(H\), \(5H\), and \(10H\). Policies are frozen throughout evaluation, and executions are not reset when an accepting state is visited. A completed round is a nonoverlapping completion of the task’s monitored goal sequence—not simply another timestep spent in an accepting state. Consequently, these counts differ from accepting visits and discounted returns. Extended-horizon table results are shown below:
+
+| Environment (\(H\) steps) | Selected seeds | Paper: original horizon | Selected: \(H\) | Selected: \(5H\) | Selected: \(10H\) |
+|---|---|---:|---:|---:|---:|
+| Carlo (500) | 0, 3 | 2.40 ± 1.27 | **3.93 ± 0.71** | 19.98 ± 18.64 | 37.66 ± 43.64 |
+| FlatWorld Cycle (50) | 6, 8, 10 | 3.33 ± 1.49 | **2.00 ± 0.00** | 11.00 ± 0.00 | 22.00 ± 0.00 |
+| Cheetah Flip (1,000) | 0 | 14.63 ± 9.47 | **24.66**† | 42.98† | 42.98† |
+| SixteenRooms (1,000) | 7, 8 | Not in supplied table | 29.00 ± 0.00 | 146.00 ± 0.00 | 293.00 ± 0.00 |
+| Fetch Pick-and-Place Button (500) | 1, 2 | Not in supplied table | 2.31 ± 1.39 | 7.31 ± 8.46 | 13.56 ± 17.30 |
+| Point Button (1,000) | 3 | Not in supplied table | 0.00† | 0.00† | 0.00† |
+| Fetch Avoid (100) | 0, 1, 3 | Not in supplied table | 1.00 ± 0.00 | 1.00 ± 0.00 | 1.00 ± 0.00 |
+
+Post-acceptance violation rates are calculated among episodes reaching acceptance and then averaged across training seeds. Fetch Avoid is nonrecurrent, so its single goal completion is evaluated together with subsequent safety rather than counted as repeated rounds.
 
 We thank the reviewer for the careful assessment and for recognizing the breadth of our evaluation across navigation, robotic manipulation, and locomotion, including recurrent LTL tasks. We also appreciate the positive assessment of the detailed theoretical appendix and its explicit discussion of the guarantees’ limitations. Below, we address the concerns about novelty, the connection between theory and implementation, and the experimental evidence and reporting.
 
